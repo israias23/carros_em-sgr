@@ -1,0 +1,277 @@
+<!--
+
+---- Creditos: ---- 
+
+Autor: Israias Alves Marques
+Data: 2025-07-13
+Instagram: @_israias
+
+---- Informações: ----
+
+Programa: Carros em SGR
+Descrição: Aplicação web para verificar carros em SGR (Sistema de Gerenciamento de Registro).
+Tecnologias: HTML, CSS (Tailwind), JavaScript, XLSX.js, html2canvas.
+Licença: MIT License
+Requisitos: Navegador moderno com suporte a JavaScript, Tailwind CSS e bibliotecas externas.
+Compatibilidade: Funciona em navegadores modernos (Chrome, Firefox, Edge, Safari).
+
+---- Instruções de uso: ----
+
+1. Abra o site em um navegador.
+2. Selecione uma planilha Excel (.xlsx ou .xls) contendo as colunas "Placa", "Modelo", "Status" e "Dias".
+3. Ajuste o filtro  de dias conforme necessário.
+4. Os resultados serão exibidos em uma tabela, e você poderá baixar uma imagem dos resultados
+   como um arquivo PNG.                 
+
+
+-->
+
+
+<script type="text/javascript">
+    var gk_isXlsx = false;
+    var gk_xlsxFileLookup = {};
+    var gk_fileData = {};
+    function filledCell(cell) {
+        return cell !== '' && cell != null;
+    }
+    function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                    row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                    headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+    }
+</script>
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carros em SGR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://kit.fontawesome.com/4a6a8e0a6c.js" crossorigin="anonymous"></script>
+</head>
+
+<body
+    class="bg-gradient-to-br from-gray-900 to-blue-900 text-gray-100 flex flex-col items-center justify-center min-h-screen p-6">
+    <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-5xl transform transition-all duration-300">
+        <h1
+            class="text-4xl font-extrabold mb-6 text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+            <i class="fas fa-car mr-2"></i>Carros em SGR
+        </h1>
+        <div class="mb-6 flex flex-col sm:flex-row gap-4 items-center">
+            <div class="flex-1">
+                <label for="fileInput" class="block text-sm font-medium text-gray-300 mb-2">Selecione a planilha
+                    Excel:</label>
+                <input type="file" id="fileInput" accept=".xlsx, .xls"
+                    class="block w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 transition-colors">
+            </div>
+            <div>
+                <label for="daysFilter" class="block text-sm font-medium text-gray-300 mb-2">Filtrar Dias maiores
+                    que:</label>
+                <input type="number" id="daysFilter" value="4" min="0"
+                    class="w-24 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+        <div id="loading" class="hidden flex flex-col items-center justify-center text-gray-200 mb-4">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-spinner animate-spin text-4xl text-blue-500"></i>
+                <span class="text-xl font-semibold">Verificando carros em SGR...</span>
+            </div>
+            <div class="mt-3 h-2 w-80 bg-gray-600 rounded-full overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse"
+                    style="width: 100%; animation: loadingBar 1.5s ease-in-out infinite;"></div>
+            </div>
+        </div>
+        <div id="output" class="mt-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-200">Resultados: <span id="resultCount">0</span> carros
+                    encontrados</h2>
+                <button id="exportBtn"
+                    class="hidden bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                    <i class="fas fa-image mr-2"></i>Baixar Imagem
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table id="resultTable" class="w-full border-collapse bg-gray-700 rounded-lg hidden">
+                    <thead>
+                        <tr class="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                            <th class="border border-gray-600 p-3 text-left"><i class="fas fa-id-card mr-1"></i>Placa
+                            </th>
+                            <th class="border border-gray-600 p-3 text-left"><i class="fas fa-car-side mr-1"></i>Modelo
+                            </th>
+                            <th class="border border-gray-600 p-3 text-left"><i
+                                    class="fas fa-info-circle mr-1"></i>Status</th>
+                            <th class="border border-gray-600 p-3 text-left"><i class="fas fa-clock mr-1"></i>Dias</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="text-gray-200"></tbody>
+                </table>
+            </div>
+            <p id="noData" class="text-gray-400 italic text-center">Nenhum dado filtrado ainda. Faça o upload de uma
+                planilha.</p>
+        </div>
+    </div>
+
+    <style>
+        @keyframes loadingBar {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            50% {
+                transform: translateX(0);
+            }
+
+            100% {
+                transform: translateX(100%);
+            }
+        }
+    </style>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFile, false);
+        document.getElementById('daysFilter').addEventListener('input', updateResults);
+        let filteredData = [];
+
+        function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Show loading state
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('output').classList.add('opacity-50', 'pointer-events-none');
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                // Identificar índices das colunas desejadas
+                const headers = Object.keys(jsonData[0] || {});
+                const requiredColumns = ['Placa', 'Modelo', 'Status', 'Dias'];
+                const columnIndices = {};
+                requiredColumns.forEach(col => {
+                    const header = headers.find(h => h.toLowerCase() === col.toLowerCase());
+                    if (header) columnIndices[col] = header;
+                });
+
+                // Verificar se todas as colunas necessárias foram encontradas
+                if (Object.keys(columnIndices).length !== requiredColumns.length) {
+                    alert('A planilha deve conter as colunas: Placa, Modelo, Status, Dias');
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('output').classList.remove('opacity-50', 'pointer-events-none');
+                    return;
+                }
+
+                // Filtrar e ordenar
+                filteredData = jsonData
+                    .filter(row => {
+                        const days = parseFloat(row[columnIndices['Dias']]);
+                        return !isNaN(days); // Include all valid days
+                    })
+                    .sort((a, b) => parseFloat(b[columnIndices['Dias']]) - parseFloat(a[columnIndices['Dias']]));
+
+                // Simulate processing delay
+                setTimeout(() => {
+                    updateResults();
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('output').classList.remove('opacity-50', 'pointer-events-none');
+                }, 4000); // 4-second delay
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function updateResults() {
+            const daysFilter = parseFloat(document.getElementById('daysFilter').value) || 0;
+            const tableBody = document.getElementById('tableBody');
+            const noData = document.getElementById('noData');
+            const resultTable = document.getElementById('resultTable');
+            const exportBtn = document.getElementById('exportBtn');
+            const resultCount = document.getElementById('resultCount');
+            tableBody.innerHTML = '';
+
+            const filtered = filteredData.filter(row => {
+                const days = parseFloat(row['Dias']);
+                return !isNaN(days) && days > daysFilter;
+            });
+
+            if (filtered.length === 0) {
+                noData.classList.remove('hidden');
+                resultTable.classList.add('hidden');
+                exportBtn.classList.add('hidden');
+                resultCount.textContent = '0';
+                return;
+            }
+
+            noData.classList.add('hidden');
+            resultTable.classList.remove('hidden');
+            exportBtn.classList.remove('hidden');
+            resultCount.textContent = filtered.length;
+
+            const requiredColumns = ['Placa', 'Modelo', 'Status', 'Dias'];
+            const columnIndices = {};
+            requiredColumns.forEach(col => {
+                const header = Object.keys(filtered[0] || {}).find(h => h.toLowerCase() === col.toLowerCase());
+                if (header) columnIndices[col] = header;
+            });
+
+            filtered.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-600 transition-colors';
+                requiredColumns.forEach(col => {
+                    const td = document.createElement('td');
+                    td.className = 'border border-gray-600 p-3';
+                    td.textContent = row[columnIndices[col]] || '';
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
+            });
+
+            // Configurar exportação como PNG
+            exportBtn.onclick = () => {
+                html2canvas(document.getElementById('output'), {
+                    backgroundColor: '#1F2937', // Match the bg-gray-800 color
+                    scale: 2 // Improve image quality
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = 'Carros_em_SGR_Resultados.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                });
+            };
+        }
+    </script>
+</body>
+
+</html>
