@@ -6,6 +6,8 @@ Autor: Israias Alves Marques
 Data: 2025-07-13
 Instagram: @_israias
 
+********************************************************************************************************
+
 ---- Informações: ----
 
 Programa: Carros em SGR
@@ -13,265 +15,195 @@ Descrição: Aplicação web para verificar carros em SGR (Sistema de Gerenciame
 Tecnologias: HTML, CSS (Tailwind), JavaScript, XLSX.js, html2canvas.
 Licença: MIT License
 Requisitos: Navegador moderno com suporte a JavaScript, Tailwind CSS e bibliotecas externas.
-Compatibilidade: Funciona em navegadores modernos (Chrome, Firefox, Edge, Safari).
+Compatibilidade: Funciona em navegadores modernos (Chrome, Firefox, Edge, Safari). 
 
----- Instruções de uso: ----
-
-1. Abra o site em um navegador.
-2. Selecione uma planilha Excel (.xlsx ou .xls) contendo as colunas "Placa", "Modelo", "Status" e "Dias".
-3. Ajuste o filtro  de dias conforme necessário.
-4. Os resultados serão exibidos em uma tabela, e você poderá baixar uma imagem dos resultados
-   como um arquivo PNG.                 
-
-
+********************************************************************************************************
 -->
-
-
-<script type="text/javascript">
-    var gk_isXlsx = false;
-    var gk_xlsxFileLookup = {};
-    var gk_fileData = {};
-    function filledCell(cell) {
-        return cell !== '' && cell != null;
-    }
-    function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                    row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                    headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-    }
-</script>
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carros em SGR</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://kit.fontawesome.com/4a6a8e0a6c.js" crossorigin="anonymous"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carros em SGR</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://kit.fontawesome.com/4a6a8e0a6c.js" crossorigin="anonymous"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .glass {
+      backdrop-filter: blur(16px);
+      background: rgba(255, 255, 255, 0.55);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    }
+    .custom-file-input::-webkit-file-upload-button {
+      visibility: hidden;
+    }
+    .custom-file-input::before {
+      content: 'Escolher arquivo';
+      display: inline-block;
+      background: linear-gradient(to right, #3b82f6, #9333ea);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 500;
+      margin-right: -120px;
+    }
+    .custom-file-input:hover::before {
+      filter: brightness(1.1);
+    }
+  </style>
 </head>
-
-<body
-    class="bg-gradient-to-br from-gray-900 to-blue-900 text-gray-100 flex flex-col items-center justify-center min-h-screen p-6">
-    <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-5xl transform transition-all duration-300">
-        <h1
-            class="text-4xl font-extrabold mb-6 text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-            <i class="fas fa-car mr-2"></i>Carros em SGR
-        </h1>
-        <div class="mb-6 flex flex-col sm:flex-row gap-4 items-center">
-            <div class="flex-1">
-                <label for="fileInput" class="block text-sm font-medium text-gray-300 mb-2">Selecione a planilha
-                    Excel:</label>
-                <input type="file" id="fileInput" accept=".xlsx, .xls"
-                    class="block w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 transition-colors">
-            </div>
-            <div>
-                <label for="daysFilter" class="block text-sm font-medium text-gray-300 mb-2">Filtrar Dias maiores
-                    que:</label>
-                <input type="number" id="daysFilter" value="4" min="0"
-                    class="w-24 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-        </div>
-        <div id="loading" class="hidden flex flex-col items-center justify-center text-gray-200 mb-4">
-            <div class="flex items-center space-x-3">
-                <i class="fas fa-spinner animate-spin text-4xl text-blue-500"></i>
-                <span class="text-xl font-semibold">Verificando carros em SGR...</span>
-            </div>
-            <div class="mt-3 h-2 w-80 bg-gray-600 rounded-full overflow-hidden">
-                <div class="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse"
-                    style="width: 100%; animation: loadingBar 1.5s ease-in-out infinite;"></div>
-            </div>
-        </div>
-        <div id="output" class="mt-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold text-gray-200">Resultados: <span id="resultCount">0</span> carros
-                    encontrados</h2>
-                <button id="exportBtn"
-                    class="hidden bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                    <i class="fas fa-image mr-2"></i>Baixar Imagem
-                </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table id="resultTable" class="w-full border-collapse bg-gray-700 rounded-lg hidden">
-                    <thead>
-                        <tr class="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                            <th class="border border-gray-600 p-3 text-left"><i class="fas fa-id-card mr-1"></i>Placa
-                            </th>
-                            <th class="border border-gray-600 p-3 text-left"><i class="fas fa-car-side mr-1"></i>Modelo
-                            </th>
-                            <th class="border border-gray-600 p-3 text-left"><i
-                                    class="fas fa-info-circle mr-1"></i>Status</th>
-                            <th class="border border-gray-600 p-3 text-left"><i class="fas fa-clock mr-1"></i>Dias</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody" class="text-gray-200"></tbody>
-                </table>
-            </div>
-            <p id="noData" class="text-gray-400 italic text-center">Nenhum dado filtrado ainda. Faça o upload de uma
-                planilha.</p>
-        </div>
+<body class="bg-gradient-to-tr from-white via-blue-50 to-white text-gray-800 flex flex-col items-center justify-center min-h-screen p-6">
+  <div class="glass border border-gray-200 p-10 rounded-3xl shadow-2xl w-full max-w-6xl">
+    <h1 class="text-5xl font-extrabold mb-10 text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 drop-shadow-md">
+      <i class="fas fa-car text-blue-500 mr-3"></i>Carros em SGR
+    </h1>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+      <div>
+        <label for="fileInput" class="block text-sm font-semibold mb-3 text-gray-700">Planilha Excel:</label>
+        <input type="file" id="fileInput" accept=".xlsx, .xls"
+               class="custom-file-input w-full focus:outline-none">
+      </div>
+      <div>
+        <label for="daysFilter" class="block text-sm font-semibold mb-3 text-gray-700">Filtrar dias maiores que:</label>
+        <input type="number" id="daysFilter" value="4" min="0"
+               class="w-full px-5 py-3 border border-gray-300 rounded-xl shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
     </div>
 
-    <style>
-        @keyframes loadingBar {
-            0% {
-                transform: translateX(-100%);
-            }
+    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
+      <h2 class="text-lg font-medium">Resultados: <span id="resultCount">0</span> carros</h2>
+      <div class="flex gap-4">
+        <button id="printBtn" class="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded-xl hover:bg-gray-100 transition">
+          <i class="fas fa-print mr-2"></i>Imprimir
+        </button>
+        <button id="exportBtn" class="hidden bg-gradient-to-r from-blue-500 to-purple-600 text-white px-5 py-2 rounded-xl hover:brightness-110 transition">
+          <i class="fas fa-image mr-2"></i>Baixar Imagem
+        </button>
+      </div>
+    </div>
+    <div id="loading" class="hidden flex flex-col items-center justify-center text-center py-8">
+      <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600 border-opacity-50 mb-4"></div>
+      <p class="text-blue-600 font-medium">Filtrando planilha, aguarde...</p>
+    </div>
 
-            50% {
-                transform: translateX(0);
-            }
+    <div id="output">
+      <table id="resultTable" class="w-full table-auto border-collapse hidden rounded-2xl overflow-hidden">
+        <thead>
+          <tr class="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-900">
+            <th class="border p-4 text-left">Placa</th>
+            <th class="border p-4 text-left">Modelo</th>
+            <th class="border p-4 text-left">Status</th>
+            <th class="border p-4 text-left">Dias</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <p id="noData" class="text-gray-400 italic text-center mt-8">Nenhum dado disponível. Faça upload de uma planilha.</p>
+    </div>
+  </div>
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const daysFilter = document.getElementById('daysFilter');
+    const tableBody = document.getElementById('tableBody');
+    const resultTable = document.getElementById('resultTable');
+    const resultCount = document.getElementById('resultCount');
+    const exportBtn = document.getElementById('exportBtn');
+    const printBtn = document.getElementById('printBtn');
+    const noData = document.getElementById('noData');
+    const loading = document.getElementById('loading');
 
-            100% {
-                transform: translateX(100%);
-            }
+    let filteredData = [];
+
+    fileInput.addEventListener('change', handleFile);
+    daysFilter.addEventListener('input', updateResults);
+    printBtn.addEventListener('click', () => window.print());
+
+    function handleFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      loading.classList.remove('hidden');
+      resultTable.classList.add('hidden');
+      noData.classList.add('hidden');
+      exportBtn.classList.add('hidden');
+      tableBody.innerHTML = '';
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+        const headers = Object.keys(jsonData[0] || {});
+        const required = ['Placa', 'Modelo', 'Status', 'Dias'];
+        const isValid = required.every(col => headers.some(h => h.toLowerCase() === col.toLowerCase()));
+
+        if (!isValid) {
+          alert('A planilha deve conter: Placa, Modelo, Status, Dias');
+          loading.classList.add('hidden');
+          return;
         }
-    </style>
 
-    <script>
-        document.getElementById('fileInput').addEventListener('change', handleFile, false);
-        document.getElementById('daysFilter').addEventListener('input', updateResults);
-        let filteredData = [];
+        filteredData = jsonData.filter(row => !isNaN(parseFloat(row['Dias'])));
 
-        function handleFile(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+        setTimeout(() => {
+          loading.classList.add('hidden');
+          updateResults();
+        }, 4000);
+      };
+      reader.readAsArrayBuffer(file);
+    }
 
-            // Show loading state
-            document.getElementById('loading').classList.remove('hidden');
-            document.getElementById('output').classList.add('opacity-50', 'pointer-events-none');
+    function updateResults() {
+      const filter = parseFloat(daysFilter.value) || 0;
+      const filtered = filteredData.filter(row => parseFloat(row['Dias']) > filter);
+      filtered.sort((a, b) => parseFloat(b['Dias']) - parseFloat(a['Dias'])); // decrescente
 
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+      tableBody.innerHTML = '';
+      resultCount.textContent = filtered.length;
 
-                // Identificar índices das colunas desejadas
-                const headers = Object.keys(jsonData[0] || {});
-                const requiredColumns = ['Placa', 'Modelo', 'Status', 'Dias'];
-                const columnIndices = {};
-                requiredColumns.forEach(col => {
-                    const header = headers.find(h => h.toLowerCase() === col.toLowerCase());
-                    if (header) columnIndices[col] = header;
-                });
+      if (filtered.length === 0) {
+        resultTable.classList.add('hidden');
+        exportBtn.classList.add('hidden');
+        noData.classList.remove('hidden');
+        return;
+      }
 
-                // Verificar se todas as colunas necessárias foram encontradas
-                if (Object.keys(columnIndices).length !== requiredColumns.length) {
-                    alert('A planilha deve conter as colunas: Placa, Modelo, Status, Dias');
-                    document.getElementById('loading').classList.add('hidden');
-                    document.getElementById('output').classList.remove('opacity-50', 'pointer-events-none');
-                    return;
-                }
+      noData.classList.add('hidden');
+      resultTable.classList.remove('hidden');
+      exportBtn.classList.remove('hidden');
 
-                // Filtrar e ordenar
-                filteredData = jsonData
-                    .filter(row => {
-                        const days = parseFloat(row[columnIndices['Dias']]);
-                        return !isNaN(days); // Include all valid days
-                    })
-                    .sort((a, b) => parseFloat(b[columnIndices['Dias']]) - parseFloat(a[columnIndices['Dias']]));
+      filtered.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-blue-50';
+        ['Placa', 'Modelo', 'Status', 'Dias'].forEach(col => {
+          const td = document.createElement('td');
+          td.className = 'border p-4';
+          td.textContent = row[col];
+          tr.appendChild(td);
+        });
+        tableBody.appendChild(tr);
+      });
 
-                // Simulate processing delay
-                setTimeout(() => {
-                    updateResults();
-                    document.getElementById('loading').classList.add('hidden');
-                    document.getElementById('output').classList.remove('opacity-50', 'pointer-events-none');
-                }, 4000); // 4-second delay
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function updateResults() {
-            const daysFilter = parseFloat(document.getElementById('daysFilter').value) || 0;
-            const tableBody = document.getElementById('tableBody');
-            const noData = document.getElementById('noData');
-            const resultTable = document.getElementById('resultTable');
-            const exportBtn = document.getElementById('exportBtn');
-            const resultCount = document.getElementById('resultCount');
-            tableBody.innerHTML = '';
-
-            const filtered = filteredData.filter(row => {
-                const days = parseFloat(row['Dias']);
-                return !isNaN(days) && days > daysFilter;
-            });
-
-            if (filtered.length === 0) {
-                noData.classList.remove('hidden');
-                resultTable.classList.add('hidden');
-                exportBtn.classList.add('hidden');
-                resultCount.textContent = '0';
-                return;
-            }
-
-            noData.classList.add('hidden');
-            resultTable.classList.remove('hidden');
-            exportBtn.classList.remove('hidden');
-            resultCount.textContent = filtered.length;
-
-            const requiredColumns = ['Placa', 'Modelo', 'Status', 'Dias'];
-            const columnIndices = {};
-            requiredColumns.forEach(col => {
-                const header = Object.keys(filtered[0] || {}).find(h => h.toLowerCase() === col.toLowerCase());
-                if (header) columnIndices[col] = header;
-            });
-
-            filtered.forEach(row => {
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-gray-600 transition-colors';
-                requiredColumns.forEach(col => {
-                    const td = document.createElement('td');
-                    td.className = 'border border-gray-600 p-3';
-                    td.textContent = row[columnIndices[col]] || '';
-                    tr.appendChild(td);
-                });
-                tableBody.appendChild(tr);
-            });
-
-            // Configurar exportação como PNG
-            exportBtn.onclick = () => {
-                html2canvas(document.getElementById('output'), {
-                    backgroundColor: '#1F2937', // Match the bg-gray-800 color
-                    scale: 2 // Improve image quality
-                }).then(canvas => {
-                    const link = document.createElement('a');
-                    link.download = 'Carros_em_SGR_Resultados.png';
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
-                });
-            };
-        }
-    </script>
+      exportBtn.onclick = () => {
+        html2canvas(document.getElementById('output'), {
+          backgroundColor: '#ffffff',
+          scale: 2
+        }).then(canvas => {
+          const link = document.createElement('a');
+          link.download = 'Carros_em_SGR.png';
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+        });
+      };
+    }
+  </script>
 </body>
-
 </html>
