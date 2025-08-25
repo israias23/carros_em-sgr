@@ -22,290 +22,475 @@ Compatibilidade: Funciona em navegadores modernos (Chrome, Firefox, Edge, Safari
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Carros em SGR</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-    }
-    .glass {
-      backdrop-filter: blur(20px);
-      background: rgba(255, 255, 255, 0.85);
-      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.08);
-      border: 1px solid rgba(251, 146, 60, 0.15);
-      border-radius: 1.5rem;
-    }
-    .custom-file-input::-webkit-file-upload-button {
-      visibility: hidden;
-    }
-    .custom-file-input::before {
-      content: 'Escolher arquivo';
-      display: inline-block;
-      background: linear-gradient(to right, #fb923c, #fcad6c);
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 12px;
-      cursor: pointer;
-      font-weight: 600;
-      margin-right: -120px;
-      margin-left: 2px;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    .custom-file-input:hover::before {
-      transform: scale(1.02);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-      background: linear-gradient(to right, #fcad6c, #fb923c);
-    }
-    #printBtn i, #exportBtn i, #helpBtn i {
-      font-size: 1.25rem;
-    }
-    #printBtn, #exportBtn, #helpBtn {
-      transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
-    }
-    #printBtn:hover, #exportBtn:hover, #helpBtn:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-    }
-    #helpTooltip {
-      transition: opacity 0.3s ease, transform 0.3s ease;
-      transform-origin: top left;
-      width: 90vw;
-      max-width: 320px;
-      z-index: 50;
-    }
-    #helpTooltip.hidden {
-      opacity: 0;
-      transform: scale(0.95) translateY(-10px);
-      pointer-events: none;
-    }
-    #helpTooltip:not(.hidden) {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-    @media (max-width: 640px) {
-      #helpTooltip {
-        top: 100%;
-        left: 50%;
-        transform-origin: top center;
-        transform: translateX(-50%) scale(0.95);
-      }
-      #helpTooltip:not(.hidden) {
-        transform: translateX(-50%) scale(1);
-      }
-    }
-
-    #resultTable {
-      animation: fadeIn 0.5s ease-in-out;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .spinner {
-      animation: spin 1s linear infinite, pulse 1.5s ease-in-out infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    @keyframes pulse {
-      0%, 100% { border-color: #fb923c; }
-      50% { border-color: #fcd34d; }
-    }
-    #resultTable tbody tr:hover {
-      background-color: rgba(251, 146, 60, 0.05);
-    }
-  </style>
-</head>
-<body class="bg-gradient-to-tr from-white via-gray-50 to-white text-gray-800 flex flex-col items-center justify-center min-h-screen p-6">
-  <div class="glass p-10 rounded-3xl w-full max-w-6xl">
-    <h1 class="text-4xl font-bold mb-10 text-center text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-500 drop-shadow-md">
-      <i class="fas fa-car text-orange-400 mr-3"></i>Carros em SGR
-    </h1>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-      <div>
-        <label for="fileInput" class="block text-sm font-semibold mb-3 text-gray-700">Planilha Excel:</label>
-        <input type="file" id="fileInput" accept=".xlsx, .xls"
-               class="custom-file-input w-full focus:outline-none">
-      </div>
-      <div>
-        <label for="daysFilter" class="block text-sm font-semibold mb-3 text-gray-700">Filtrar dias maiores que:</label>
-        <input type="number" id="daysFilter" value="4" min="0"
-               class="w-full px-5 py-3 border border-gray-200 rounded-xl shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
-      </div>
-    </div>
-
-    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-      <h2 class="text-lg font-medium text-gray-700">Resultados: <span id="resultCount">0</span> carros</h2>
-      <div class="flex gap-4 relative">
-        <button id="helpBtn" class="bg-white border border-gray-200 text-orange-400 px-4 py-2 rounded-xl hover:bg-amber-50 transition" title="Como usar o programa">
-          <i class="fas fa-circle-question"></i>
-        </button>
-        <div id="helpTooltip" class="hidden absolute top-12 left-0 bg-white border border-gray-200 rounded-xl p-5 shadow-2xl z-50">
-          <div class="flex justify-between items-center mb-3">
-            <h3 class="text-lg font-semibold text-orange-600">Como usar o programa.</h3>
-            <button id="closeTooltip" class="text-gray-500 hover:text-orange-400 transition">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-          <ol class="text-sm text-gray-600 list-decimal ml-4 space-y-2">
-            <li>Faça upload de uma planilha Excel (.xlsx ou .xls) com as colunas: Placa, Modelo, Status, Dias.</li>
-            <li>Defina o número de dias no campo "Filtrar dias maiores que" para filtrar os resultados.</li>
-            <li>Aguarde o carregamento dos dados (pode levar alguns segundos).</li>
-            <li>Visualize os resultados na tabela exibida.</li>
-            <li>Use o botão de imprimir (<i class="fas fa-print"></i>) para imprimir a tabela.</li>
-            <li>Use o botão de baixar (<i class="fas fa-download"></i>) para salvar a tabela como imagem.</li>
-          </ol>
-        </div>
-        <button id="printBtn" class="hidden bg-white border border-gray-200 text-orange-400 px-5 py-2 rounded-xl hover:bg-amber-50 transition" title="Imprimir">
-          <i class="fas fa-print"></i>
-        </button> 
-        <button id="exportBtn" class="hidden bg-white border border-gray-200 text-orange-400 px-5 py-2 rounded-xl hover:bg-amber-50 transition" title="Baixar Imagem">
-          <i class="fas fa-download"></i>
-        </button>
-      </div>
-    </div>
-    <div id="loading" class="hidden flex flex-col items-center justify-center text-center py-8">
-      <div class="spinner rounded-full h-12 w-12 border-t-4 border-orange-400 border-opacity-50 mb-4"></div>
-      <p class="text-orange-400 font-medium">Filtrando planilha, aguarde...</p>
-    </div>
-
-    <div id="output">
-      <table id="resultTable" class="w-full table-auto border-collapse hidden rounded-2xl overflow-hidden">
-        <thead>
-          <tr class="bg-gradient-to-r from-gray-100 to-gray-100 text-gray-800">
-            <th class="border border-gray-200 p-4 text-left">Placa</th>
-            <th class="border border-gray-200 p-4 text-left">Modelo</th>
-            <th class="border border-gray-200 p-4 text-left">Status</th>
-            <th class="border border-gray-200 p-4 text-left">Dias</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-      <p id="noData" class="text-gray-400 italic text-center mt-8">Nenhum dado disponível. Faça upload de uma planilha.</p>
-    </div>
-  </div>
-  <script>
-    const fileInput = document.getElementById('fileInput');
-    const daysFilter = document.getElementById('daysFilter');
-    const tableBody = document.getElementById('tableBody');
-    const resultTable = document.getElementById('resultTable');
-    const resultCount = document.getElementById('resultCount');
-    const exportBtn = document.getElementById('exportBtn');
-    const printBtn = document.getElementById('printBtn');
-    const helpBtn = document.getElementById('helpBtn');
-    const helpTooltip = document.getElementById('helpTooltip');
-    const closeTooltip = document.getElementById('closeTooltip');
-    const noData = document.getElementById('noData');
-    const loading = document.getElementById('loading');
-
-    let filteredData = [];
-
-    helpBtn.addEventListener('click', () => {
-      helpTooltip.classList.toggle('hidden');
-    });
-    helpBtn.addEventListener('mouseenter', () => {
-      helpTooltip.classList.remove('hidden');
-    });
-    helpBtn.addEventListener('mouseleave', () => {
-      helpTooltip.classList.add('hidden');
-    });
-    closeTooltip.addEventListener('click', () => {
-      helpTooltip.classList.add('hidden');
-    });
-
-    fileInput.addEventListener('change', handleFile);
-    daysFilter.addEventListener('input', updateResults);
-    printBtn.addEventListener('click', () => window.print());
-
-    function handleFile(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      loading.classList.remove('hidden');
-      resultTable.classList.add('hidden');
-      noData.classList.add('hidden');
-      exportBtn.classList.add('hidden');
-      tableBody.innerHTML = '';
-
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(sheet);
-
-        const headers = Object.keys(jsonData[0] || {});
-        const required = ['Placa', 'Modelo', 'Status', 'Dias'];
-        const isValid = required.every(col => headers.some(h => h.toLowerCase() === col.toLowerCase()));
-
-        if (!isValid) {
-          alert('A planilha deve conter: Placa, Modelo, Status, Dias');
-          loading.classList.add('hidden');
-          return;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carros em SGR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .glass {
+            backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(251, 146, 60, 0.15);
+            border-radius: 1.5rem;
+        }
+        .custom-file-input::-webkit-file-upload-button {
+            visibility: hidden;
+        }
+        .custom-file-input::before {
+            content: 'Escolher arquivo';
+            display: inline-block;
+            background: linear-gradient(to right, #fb923c, #fcad6c);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-right: -120px;
+            margin-left: 2px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .custom-file-input:hover::before {
+            transform: scale(1.02);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+            background: linear-gradient(to right, #fcad6c, #fb923c);
+        }
+        #printBtn i, #exportBtn i, #helpBtn i {
+            font-size: 1.25rem;
+        }
+        #printBtn, #exportBtn, #helpBtn {
+            transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+        }
+        #printBtn:hover, #exportBtn:hover, #helpBtn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+        #helpTooltip {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            transform-origin: top left;
+            width: 90vw;
+            max-width: 320px;
+            z-index: 50;
+        }
+        #helpTooltip.hidden {
+            opacity: 0;
+            transform: scale(0.95) translateY(-10px);
+            pointer-events: none;
+        }
+        #helpTooltip:not(.hidden) {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+        @media (max-width: 640px) {
+            #helpTooltip {
+                top: 100%;
+                left: 50%;
+                transform-origin: top center;
+                transform: translateX(-50%) scale(0.95);
+            }
+            #helpTooltip:not(.hidden) {
+                transform: translateX(-50%) scale(1);
+            }
         }
 
-        filteredData = jsonData.filter(row => !isNaN(parseFloat(row['Dias'])));
+        #resultTable {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .spinner {
+            animation: spin 1s linear infinite, pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+            0%, 100% { border-color: #fb923c; }
+            50% { border-color: #fcd34d; }
+        }
+        #resultTable tbody tr:hover {
+            background-color: rgba(251, 146, 60, 0.05);
+        }
+        #resultTable tbody tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        #resultTable th, #resultTable td {
+            color: #111827;
+        }
+        #resultTable {
+            border: 2px solid #d1d5db;
+        }
+        #resultTable th {
+            background: linear-gradient(to right, #f3f4f6, #e5e7eb);
+        }
 
-        setTimeout(() => {
-          loading.classList.add('hidden');
-          updateResults();
-        }, 4000);
-      };
-      reader.readAsArrayBuffer(file);
-    }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #output, #output * {
+                visibility: visible;
+            }
+            #output {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            #resultTable {
+                border-collapse: collapse;
+                width: 100%;
+            }
+            #resultTable th, #resultTable td {
+                border: 1px solid black;
+                padding: 8px;
+                color: black;
+            }
+            #resultTable th {
+                background-color: #e5e7eb;
+            }
+            #resultTable tbody tr:nth-child(even) {
+                background-color: #f9fafb;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-tr from-white via-gray-50 to-white text-gray-900 flex flex-col items-center justify-center min-h-screen p-6">
+    <div class="glass p-10 rounded-3xl w-full max-w-6xl">
+        <h1 class="text-4xl font-bold mb-10 text-center text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-500 drop-shadow-md">
+            <i class="fas fa-car text-orange-400 mr-3"></i>Carros em SGR
+        </h1>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+            <div>
+                <label for="fileInput" class="block text-sm font-semibold mb-3 text-gray-700">Planilha Excel:</label>
+                <input type="file" id="fileInput" accept=".xlsx, .xls"
+                       class="custom-file-input w-full focus:outline-none">
+            </div>
+            <div>
+                <label for="daysFilter" class="block text-sm font-semibold mb-3 text-gray-700">Filtrar dias maiores que:</label>
+                <input type="number" id="daysFilter" value="4" min="0"
+                       class="w-full px-5 py-3 border border-gray-200 rounded-xl shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+            </div>
+            <div>
+                <label for="statusFilter" class="block text-sm font-semibold mb-3 text-gray-700">Filtrar por Status:</label>
+                <select id="statusFilter" class="w-full px-5 py-3 border border-gray-200 rounded-xl shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+                    <option value="Todos">Todos</option>
+                    <option value="Lavagem">Lavagem</option>
+                    <option value="Abastecimento">Abastecimento</option>
+                    <option value="Aguardando CheckList - Pós Lavagem">Aguardando CheckList - Pós Lavagem</option>
+                    <option value="Pronto para Locação">Pronto para Locação</option>
+                </select>
+            </div>
+        </div>
 
-    function updateResults() {
-      const filter = parseFloat(daysFilter.value) || 0;
-      const filtered = filteredData.filter(row => parseFloat(row['Dias']) > filter);
-      filtered.sort((a, b) => parseFloat(b['Dias']) - parseFloat(a['Dias']));
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
+            <h2 class="text-lg font-medium text-gray-700">Resultados: <span id="resultCount">0</span> carros</h2>
+            <div class="flex gap-4 relative">
+                <button id="helpBtn" class="bg-white border border-gray-200 text-orange-400 px-4 py-2 rounded-xl hover:bg-amber-50 transition" title="Como usar o programa">
+                    <i class="fas fa-circle-question"></i>
+                </button>
+                <div id="helpTooltip" class="hidden absolute top-12 left-0 bg-white border border-gray-200 rounded-xl p-5 shadow-2xl z-50">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-lg font-semibold text-orange-600">Como usar o programa.</h3>
+                        <button id="closeTooltip" class="text-gray-500 hover:text-orange-400 transition">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <ol class="text-sm text-gray-600 list-decimal ml-4 space-y-2">
+                        <li>Faça upload de uma planilha Excel (.xlsx ou .xls) com as colunas: Placa, Modelo, Status, Dias.</li>
+                        <li>Defina o número de dias no campo "Filtrar dias maiores que" para filtrar os resultados.</li>
+                        <li>Selecione um status no filtro de status para refinar os resultados (ou "Todos" para ver tudo).</li>
+                        <li>Aguarde o carregamento dos dados (pode levar alguns segundos).</li>
+                        <li>Visualize os resultados na tabela exibida.</li>
+                        <li>Use o botão de imprimir (<i class="fas fa-print"></i>) para imprimir a tabela.</li>
+                        <li>Use o botão de baixar (<i class="fas fa-download"></i>) para salvar a tabela como imagem.</li>
+                    </ol>
+                </div>
+                <button id="printBtn" class="hidden bg-white border border-gray-200 text-orange-400 px-5 py-2 rounded-xl hover:bg-amber-50 transition" title="Imprimir">
+                    <i class="fas fa-print"></i>
+                </button> 
+                <button id="exportBtn" class="hidden bg-white border border-gray-200 text-orange-400 px-5 py-2 rounded-xl hover:bg-amber-50 transition" title="Baixar Imagem">
+                    <i class="fas fa-download"></i>
+                </button>
+            </div>
+        </div>
+        <div id="loading" class="hidden flex flex-col items-center justify-center text-center py-8">
+            <div class="spinner rounded-full h-12 w-12 border-t-4 border-orange-400 border-opacity-50 mb-4"></div>
+            <p class="text-orange-400 font-medium">Filtrando planilha, aguarde...</p>
+        </div>
+        <div id="errorMsg" class="text-red-500 mt-4 hidden text-center"></div>
 
-      tableBody.innerHTML = '';
-      resultCount.textContent = filtered.length;
+        <div id="output">
+            <table id="resultTable" class="w-full table-auto border-collapse hidden rounded-2xl overflow-hidden">
+                <thead>
+                    <tr class="bg-gradient-to-r from-gray-100 to-gray-100 text-gray-900">
+                        <th class="border border-gray-200 p-4 text-left">Placa</th>
+                        <th class="border border-gray-200 p-4 text-left">Modelo</th>
+                        <th class="border border-gray-200 p-4 text-left">Status</th>
+                        <th class="border border-gray-200 p-4 text-left">Dias</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+            <div id="pagination" class="flex justify-center gap-4 mt-4 hidden">
+                <button id="prevPage" class="bg-white border border-gray-200 text-orange-400 px-4 py-2 rounded-xl hover:bg-amber-50 transition disabled:opacity-50" disabled>
+                    <i class="fas fa-chevron-left"></i> Anterior
+                </button>
+                <span id="pageInfo" class="self-center text-gray-700"></span>
+                <button id="nextPage" class="bg-white border border-gray-200 text-orange-400 px-4 py-2 rounded-xl hover:bg-amber-50 transition disabled:opacity-50" disabled>
+                    Próximo <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            <p id="noData" class="text-gray-400 italic text-center mt-8">Nenhum dado disponível. Faça upload de uma planilha.</p>
+        </div>
+    </div>
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const daysFilter = document.getElementById('daysFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        const tableBody = document.getElementById('tableBody');
+        const resultTable = document.getElementById('resultTable');
+        const resultCount = document.getElementById('resultCount');
+        const exportBtn = document.getElementById('exportBtn');
+        const printBtn = document.getElementById('printBtn');
+        const helpBtn = document.getElementById('helpBtn');
+        const helpTooltip = document.getElementById('helpTooltip');
+        const closeTooltip = document.getElementById('closeTooltip');
+        const noData = document.getElementById('noData');
+        const loading = document.getElementById('loading');
+        const errorMsg = document.getElementById('errorMsg');
+        const prevPage = document.getElementById('prevPage');
+        const nextPage = document.getElementById('nextPage');
+        const pageInfo = document.getElementById('pageInfo');
+        const pagination = document.getElementById('pagination');
 
-      if (filtered.length === 0) {
-        resultTable.classList.add('hidden');
-        exportBtn.classList.add('hidden');
-        printBtn.classList.add('hidden');
-        noData.classList.remove('hidden');
-        return;
-      }
+        let filteredData = [];
+        let colMap = {};
+        let currentPage = 1;
+        const pageSize = 20;
 
-      noData.classList.add('hidden');
-      resultTable.classList.remove('hidden');
-      exportBtn.classList.remove('hidden');
-      printBtn.classList.remove('hidden');
-
-      filtered.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-amber-50';
-        ['Placa', 'Modelo', 'Status', 'Dias'].forEach(col => {
-          const td = document.createElement('td');
-          td.className = 'border border-gray-200 p-4';
-          td.textContent = row[col];
-          tr.appendChild(td);
+        helpBtn.addEventListener('click', () => {
+            helpTooltip.classList.toggle('hidden');
         });
-        tableBody.appendChild(tr);
-      });
-
-      exportBtn.onclick = () => {
-        html2canvas(document.getElementById('output'), {
-          backgroundColor: '#ffffff',
-          scale: 2
-        }).then(canvas => {
-          const link = document.createElement('a');
-          link.download = 'Carros_em_SGR.png';
-          link.href = canvas.toDataURL('image/png');
-          link.click();
+        helpBtn.addEventListener('mouseenter', () => {
+            helpTooltip.classList.remove('hidden');
         });
-      };
-    }
-  </script>
+        helpBtn.addEventListener('mouseleave', () => {
+            helpTooltip.classList.add('hidden');
+        });
+        closeTooltip.addEventListener('click', () => {
+            helpTooltip.classList.add('hidden');
+        });
+
+        fileInput.addEventListener('change', handleFile);
+        daysFilter.addEventListener('input', () => { currentPage = 1; updateResults(); });
+        statusFilter.addEventListener('change', () => { currentPage = 1; updateResults(); });
+        printBtn.addEventListener('click', () => window.print());
+        prevPage.addEventListener('click', () => { if (currentPage > 1) { currentPage--; updateResults(); } });
+        nextPage.addEventListener('click', () => { currentPage++; updateResults(); });
+
+        function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            loading.classList.remove('hidden');
+            resultTable.classList.add('hidden');
+            noData.classList.add('hidden');
+            errorMsg.classList.add('hidden');
+            exportBtn.classList.add('hidden');
+            printBtn.classList.add('hidden');
+            pagination.classList.add('hidden');
+            tableBody.innerHTML = '';
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+                    const headers = Object.keys(jsonData[0] || {});
+                    const required = ['Placa', 'Modelo', 'Status', 'Dias'];
+                    colMap = {};
+                    required.forEach(col => {
+                        const found = headers.find(h => h.toLowerCase() === col.toLowerCase());
+                        if (found) colMap[col] = found;
+                    });
+
+                    if (Object.keys(colMap).length !== required.length) {
+                        throw new Error('A planilha deve conter as colunas: Placa, Modelo, Status, Dias (case-insensitive)');
+                    }
+
+                    filteredData = jsonData.filter(row => !isNaN(parseFloat(row[colMap['Dias']])));
+
+                    loading.classList.add('hidden');
+                    currentPage = 1;
+                    updateResults();
+                } catch (error) {
+                    loading.classList.add('hidden');
+                    errorMsg.textContent = error.message || 'Erro ao processar o arquivo. Verifique o formato da planilha.';
+                    errorMsg.classList.remove('hidden');
+                }
+            };
+            reader.onerror = function () {
+                loading.classList.add('hidden');
+                errorMsg.textContent = 'Erro ao ler o arquivo. Tente novamente.';
+                errorMsg.classList.remove('hidden');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function updateResults() {
+            const filter = parseFloat(daysFilter.value) || 0;
+            const status = statusFilter.value;
+            let filtered = filteredData.filter(row => parseFloat(row[colMap['Dias']]) > filter);
+
+            if (status !== 'Todos') {
+                filtered = filtered.filter(row => row[colMap['Status']] === status);
+            }
+
+            filtered.sort((a, b) => parseFloat(b[colMap['Dias']]) - parseFloat(a[colMap['Dias']]));
+
+            const totalPages = Math.ceil(filtered.length / pageSize);
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const paginated = filtered.slice(start, end);
+
+            tableBody.innerHTML = '';
+            resultCount.textContent = filtered.length;
+
+            if (filtered.length === 0) {
+                resultTable.classList.add('hidden');
+                exportBtn.classList.add('hidden');
+                printBtn.classList.add('hidden');
+                pagination.classList.add('hidden');
+                noData.classList.remove('hidden');
+                return;
+            }
+
+            noData.classList.add('hidden');
+            resultTable.classList.remove('hidden');
+            exportBtn.classList.remove('hidden');
+            printBtn.classList.remove('hidden');
+            if (totalPages > 1) {
+                pagination.classList.remove('hidden');
+                pageInfo.textContent = `Página ${currentPage} de ${totalPages}`;
+                prevPage.disabled = currentPage === 1;
+                nextPage.disabled = currentPage === totalPages;
+            } else {
+                pagination.classList.add('hidden');
+            }
+
+            paginated.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-amber-50';
+                ['Placa', 'Modelo', 'Status', 'Dias'].forEach(col => {
+                    const td = document.createElement('td');
+                    td.className = 'border border-gray-200 p-4';
+                    td.textContent = row[colMap[col]];
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
+            });
+        }
+        
+        exportBtn.onclick = () => {
+            document.body.appendChild(clone);
+
+// Temporariamente, adicione uma borda visível e um fundo para depuração
+clone.style.border = '5px solid red'; 
+clone.style.backgroundColor = 'yellow';
+clone.style.zIndex = '99999';
+
+console.log('Tabela Clonada:', clone);
+console.log('Estilos computados do TH:', window.getComputedStyle(clone.querySelector('th')).backgroundColor);
+console.log('Estilos computados do TD:', window.getComputedStyle(clone.querySelector('td')).color);
+            const tableElement = document.getElementById('resultTable');
+            const clone = tableElement.cloneNode(true);
+            
+            const originalBodyStyle = document.body.style.cssText;
+            
+            const mainContainer = document.querySelector('.glass');
+            if (mainContainer) {
+              mainContainer.classList.remove('glass');
+            }
+
+            document.body.style.backgroundColor = '#ffffff';
+
+            clone.style.borderRadius = '0';
+            clone.style.backgroundColor = '#ffffff';
+            clone.style.padding = '20px';
+            clone.style.boxShadow = 'none';
+
+            // Remover classes do Tailwind que podem causar problemas
+            clone.querySelectorAll('*').forEach(el => {
+                el.removeAttribute('class');
+            });
+
+            // Aplicar estilos de alto contraste
+            const thElements = clone.querySelectorAll('th');
+            thElements.forEach(th => {
+                th.style.backgroundColor = '#2c3e50';
+                th.style.color = '#ffffff';
+                th.style.border = '2px solid #34495e';
+                th.style.padding = '12px';
+            });
+
+            const tdElements = clone.querySelectorAll('td');
+            tdElements.forEach((td, i) => {
+                td.style.color = '#34495e';
+                td.style.border = '1px solid #bdc3c7';
+                td.style.padding = '12px';
+                
+                if (i % 2 === 0) td.style.backgroundColor = '#ecf0f1';
+                else td.style.backgroundColor = '#ffffff';
+            });
+
+            document.body.appendChild(clone);
+
+            html2canvas(clone, {
+                scale: 4,
+                logging: false,
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'Carros_em_SGR.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                document.body.removeChild(clone);
+                
+                if (mainContainer) {
+                  mainContainer.classList.add('glass');
+                }
+                
+                document.body.style.cssText = originalBodyStyle;
+                
+            }).catch(error => {
+                console.error('Erro ao gerar imagem:', error);
+                alert('Falha ao baixar a imagem. Tente novamente.');
+                
+                if (mainContainer) {
+                  mainContainer.classList.add('glass');
+                }
+                document.body.style.cssText = originalBodyStyle;
+            });
+        };
+    </script>
 </body>
 </html>
