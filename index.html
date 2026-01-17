@@ -411,7 +411,7 @@ Compatibilidade: Funciona em navegadores modernos (Chrome, Firefox, Edge, Safari
         exportBtn.onclick = () => {
             document.body.appendChild(clone);
 
-// Temporariamente, adicione uma borda visível e um fundo para depuração
+
 clone.style.border = '5px solid red'; 
 clone.style.backgroundColor = 'yellow';
 clone.style.zIndex = '99999';
@@ -436,12 +436,12 @@ console.log('Estilos computados do TD:', window.getComputedStyle(clone.querySele
             clone.style.padding = '20px';
             clone.style.boxShadow = 'none';
 
-            // Remover classes do Tailwind que podem causar problemas
+
             clone.querySelectorAll('*').forEach(el => {
                 el.removeAttribute('class');
             });
 
-            // Aplicar estilos de alto contraste
+            // Estilos de alto contraste
             const thElements = clone.querySelectorAll('th');
             thElements.forEach(th => {
                 th.style.backgroundColor = '#2c3e50';
